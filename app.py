@@ -10,7 +10,7 @@ st.markdown("<p style='text-align:center;'>무작위로 정해진 숫자를 맞�
 if "score" not in st.session_state:
     st.session_state.score = 0
 if "lives" not in st.session_state:
-    st.session_state.lives = 3
+    st.session_state.lives = 10
 if "answer" not in st.session_state:
     st.session_state.answer = random.randint(1, 20)
 if "choices" not in st.session_state:
