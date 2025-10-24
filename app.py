@@ -1,17 +1,19 @@
 import streamlit as st
-import time
-import random
+from PIL import Image, ImageDraw
+import time, random
 
-# ----- 기본 설정 -----
 st.set_page_config(page_title="야바위 게임", page_icon="🎩", layout="centered")
 st.markdown("<h1 style='text-align:center;'>🎩 야바위 게임 🎩</h1>", unsafe_allow_html=True)
 st.markdown("<p style='text-align:center;'>공이 들어있는 컵을 맞춰보세요!</p>", unsafe_allow_html=True)
 
-# ----- 이미지 URL (수정 가능) -----
-CUP_URL = "https://upload.wikimedia.org/wikipedia/commons/thumb/2/24/Red_cup.svg/512px-Red_cup.svg.png"
-BALL_URL = "https://upload.wikimedia.org/wikipedia/commons/thumb/7/7a/Billiard_ball_3.png/240px-Billiard_ball_3.png"
+# 기본 설정
+width, height = 600, 400
+cup_width, cup_height = 80, 100
+ball_radius = 15
+cup_y = 200
+positions_x = [150, 300, 450]
 
-# ----- 상태 초기화 -----
+# 세션 상태 초기화
 if "ball_position" not in st.session_state:
     st.session_state.ball_position = random.randint(0, 2)
 if "shuffled" not in st.session_state:
@@ -19,48 +21,64 @@ if "shuffled" not in st.session_state:
 if "show_result" not in st.session_state:
     st.session_state.show_result = False
 
-# ----- 컵 섞기 애니메이션 -----
+
+def draw_scene(ball_pos=None, cup_positions=None):
+    """PIL로 컵 3개와 공을 그리는 함수"""
+    img = Image.new("RGB", (width, height), "white")
+    draw = ImageDraw.Draw(img)
+
+    # 공
+    if ball_pos is not None:
+        bx = cup_positions[ball_pos]
+        draw.ellipse(
+            (bx - ball_radius, cup_y + cup_height - 20,
+             bx + ball_radius, cup_y + cup_height + 10),
+            fill="red", outline="black"
+        )
+
+    # 컵
+    for x in cup_positions:
+        draw.rectangle(
+            (x - cup_width//2, cup_y - cup_height, x + cup_width//2, cup_y),
+            fill="lightblue", outline="black", width=3
+        )
+
+    return img
+
+
 def shuffle_animation():
+    """컵 섞기 애니메이션"""
     placeholder = st.empty()
-    positions = [0, 1, 2]
-    sequence = []
+    cup_positions = positions_x[:]
+    sequence = [random.sample([0, 1, 2], 2) for _ in range(8)]
 
-    # 섞는 순서 랜덤 생성
-    for _ in range(8):
-        i, j = random.sample([0, 1, 2], 2)
-        sequence.append((i, j))
-
-    # 컵 이동 시각적 애니메이션
     for (i, j) in sequence:
-        for shift in range(0, 20, 2):  # 왼쪽→오른쪽 이동
-            with placeholder.container():
-                st.markdown(
-                    f"""
-                    <div style='text-align:center; background:white;'>
-                        <img src='{CUP_URL}' width='{120 - shift}' style='margin:20px;'>
-                        <img src='{CUP_URL}' width='{120 + shift}' style='margin:20px;'>
-                        <img src='{CUP_URL}' width='120' style='margin:20px;'>
-                    </div>
-                    """,
-                    unsafe_allow_html=True,
-                )
-            time.sleep(0.03)
-        positions[i], positions[j] = positions[j], positions[i]
+        start_i, start_j = cup_positions[i], cup_positions[j]
+        for step in range(20):
+            t = step / 20
+            # i컵은 j위치로, j컵은 i위치로 이동
+            cup_positions[i] = int(start_i + (start_j - start_i) * t)
+            cup_positions[j] = int(start_j + (start_i - start_j) * t)
 
-    st.session_state.ball_position = positions.index(st.session_state.ball_position)
+            img = draw_scene(None, cup_positions)
+            placeholder.image(img, use_container_width=True)
+            time.sleep(0.03)
+
+        cup_positions[i], cup_positions[j] = start_j, start_i
+
+    # 공 위치 갱신
+    st.session_state.ball_position = cup_positions.index(positions_x[st.session_state.ball_position])
     st.session_state.shuffled = True
     placeholder.empty()
 
-# ----- 컵 보여주기 -----
-def show_cups(show_ball=False):
-    st.markdown("<div style='text-align:center; background:white;'>", unsafe_allow_html=True)
-    for i in range(3):
-        if show_ball and i == st.session_state.ball_position:
-            st.markdown(f"<img src='{BALL_URL}' width='80' style='margin:10px;'>", unsafe_allow_html=True)
-        st.markdown(f"<img src='{CUP_URL}' width='120' style='margin:20px;'>", unsafe_allow_html=True)
-    st.markdown("</div>", unsafe_allow_html=True)
 
-# ----- 메인 로직 -----
+# 컵 표시
+def show_cups(show_ball=False):
+    img = draw_scene(st.session_state.ball_position if show_ball else None, positions_x)
+    st.image(img, use_container_width=True)
+
+
+# 메인 로직
 if not st.session_state.shuffled:
     if st.button("🔀 컵 섞기 시작하기"):
         shuffle_animation()
@@ -76,11 +94,9 @@ else:
                 st.session_state.show_result = True
                 st.rerun()
 
-# ----- 결과 -----
+# 결과 표시
 if st.session_state.show_result:
-    st.markdown("<br><hr>", unsafe_allow_html=True)
     show_cups(show_ball=True)
-
     if st.session_state.choice == st.session_state.ball_position:
         st.success("🎉 정답입니다! 공을 찾았어요!")
     else:
