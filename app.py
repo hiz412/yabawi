@@ -1,61 +1,128 @@
-import streamlit as st
-import random
-from PIL import Image
+from IPython.display import HTML
 
-# --- 설정 ---
-st.set_page_config(page_title="야바위 게임 🎩", page_icon="🎩", layout="centered")
+HTML('''
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>야바위 게임</title>
+<style>
+  body {
+    background-color: white;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    margin: 0;
+  }
 
-st.title("🎩 야바위 게임 (Shell Game)")
-st.markdown("컵 아래 숨겨진 공을 맞혀보세요!")
+  #game {
+    position: relative;
+    width: 600px;
+    height: 300px;
+    background-color: white;
+    border: 2px solid #000;
+    overflow: hidden;
+  }
 
-# --- 이미지 로드 ---
-cup_img = Image.open("images/cup.png")
-ball_img = Image.open("images/ball.png")
-background_img = Image.open("images/background.jpg")
+  .cup {
+    position: absolute;
+    bottom: 0;
+    width: 100px;
+    height: 100px;
+    background-color: #999;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: left 0.8s ease-in-out;
+  }
 
-st.image(background_img, use_container_width=True)
+  #cup1 { left: 100px; }
+  #cup2 { left: 250px; }
+  #cup3 { left: 400px; }
 
-# --- 상태 초기화 ---
-if "ball_position" not in st.session_state:
-    st.session_state.ball_position = random.randint(0, 2)
-if "revealed" not in st.session_state:
-    st.session_state.revealed = False
+  #ball {
+    position: absolute;
+    bottom: 100px;
+    left: 250px;
+    width: 30px;
+    height: 30px;
+    background-color: red;
+    border-radius: 50%;
+    display: none;
+    transition: left 0.8s ease-in-out;
+  }
 
-# --- 컵 표시 ---
-cols = st.columns(3)
+  button {
+    position: absolute;
+    bottom: -60px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 10px 20px;
+    font-size: 18px;
+    cursor: pointer;
+  }
+</style>
+</head>
+<body>
 
-# 3개의 컵 버튼 생성
-for i in range(3):
-    with cols[i]:
-        if st.button(f"컵 {i+1}"):
-            st.session_state.revealed = True
-            st.session_state.choice = i
+<div id="game">
+  <div id="cup1" class="cup"></div>
+  <div id="cup2" class="cup"></div>
+  <div id="cup3" class="cup"></div>
+  <div id="ball"></div>
+  <button onclick="shuffle()">섞기</button>
+</div>
 
-# --- 결과 표시 ---
-if st.session_state.revealed:
-    st.write("---")
-    correct = st.session_state.ball_position
-    choice = st.session_state.choice
+<script>
+let ballPos = 2; // 1, 2, 3 중 하나 (공 위치)
+let cups = [document.getElementById("cup1"),
+            document.getElementById("cup2"),
+            document.getElementById("cup3")];
+let ball = document.getElementById("ball");
+let animating = false;
 
-    # 컵 아래 공 보여주기
-    cup_display = []
-    for i in range(3):
-        if i == correct:
-            cup_display.append(ball_img)
-        else:
-            cup_display.append(cup_img)
-    
-    st.image(cup_display, width=150)
+function shuffle() {
+  if (animating) return;
+  animating = true;
+  ball.style.display = "none";
 
-    if choice == correct:
-        st.success("🎉 정답입니다! 공을 찾았어요!")
-    else:
-        st.error(f"😅 아쉽네요! 공은 컵 {correct+1}번에 있었어요.")
+  let moves = 5;
+  let count = 0;
 
-    if st.button("다시 하기 🔄"):
-        st.session_state.ball_position = random.randint(0, 2)
-        st.session_state.revealed = False
-        st.rerun()
-else:
-    st.info("컵을 클릭해서 공이 어디 있는지 맞혀보세요!")
+  let shuffleInterval = setInterval(() => {
+    let i = Math.floor(Math.random() * 3);
+    let j = Math.floor(Math.random() * 3);
+    if (i !== j) {
+      let tempLeft = cups[i].style.left;
+      cups[i].style.left = cups[j].style.left;
+      cups[j].style.left = tempLeft;
 
+      if (ballPos === i + 1) ballPos = j + 1;
+      else if (ballPos === j + 1) ballPos = i + 1;
+      count++;
+    }
+    if (count >= moves) {
+      clearInterval(shuffleInterval);
+      animating = false;
+      setTimeout(() => alert("이제 어느 컵에 공이 있을까요?"), 500);
+    }
+  }, 1000);
+}
+
+cups.forEach((cup, index) => {
+  cup.addEventListener("click", () => {
+    if (animating) return;
+    if (ballPos === index + 1) {
+      ball.style.display = "block";
+      ball.style.left = cup.style.left;
+      alert("정답! 🎉");
+    } else {
+      alert("틀렸어요 😢 다시 시도해보세요!");
+    }
+  });
+});
+</script>
+
+</body>
+</html>
+''')
